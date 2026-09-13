@@ -1,0 +1,11 @@
+{
+  "name": "RavagerNoSacrifice",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/LowxRise/RavagerNoSacrifice",
+  "description": "Configure the health spent on Ravager's Twisted Mutation aerial blink.",
+  "dependencies": [
+    "bbepis-BepInExPack-5.4.2113",
+    "Rune580-Risk_Of_Options-2.8.5",
+    "public_ParticleSystem-Ravager-1.6.0"
+  ]
+}
