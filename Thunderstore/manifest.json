@@ -1,8 +1,8 @@
 {
   "name": "RavagerNoSacrifice",
-  "version_number": "1.0.0",
+  "version_number": "1.1.0",
   "website_url": "https://github.com/LowxRise/RavagerNoSacrifice",
-  "description": "Configure the health spent on Ravager's Twisted Mutation aerial blink.",
+  "description": "Configure Twisted Mutation, give short Nullify releases a shorter cooldown, and keep the Blood Well visible with LookingGlass.",
   "dependencies": [
     "bbepis-BepInExPack-5.4.2113",
     "Rune580-Risk_Of_Options-2.8.5",
