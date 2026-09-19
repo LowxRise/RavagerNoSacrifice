@@ -4,7 +4,7 @@ The Twisted Mutation health-cost slider runs from 0 to 10%, with 0% as the defau
 
 The Short-release cooldown option is enabled by default. Releasing the alternate utility Nullify in under two seconds gives it a four-second base cooldown. Holding it for two seconds or longer keeps its original 12-second base cooldown. Cooldown-reduction items still work normally.
 
-When LookingGlass is installed, the mod keeps Ravager's original Blood Well meter active and draws it above the extra HUD elements. LookingGlass remains optional.
+When LookingGlass is installed, the mod rebuilds Ravager's original Blood Well ring from Ravager's own asset and places it in a separate crosshair overlay. This avoids Ravager's failing HUD setup and prevents LookingGlass's tab-only stats mode from hiding the ring. LookingGlass remains optional.
 
 Changes apply to the next use. Requires Ravager and Risk of Options. Built against Ravager 1.6.0 and LookingGlass 1.15.2. Ravager's original Twisted Mutation tooltip still says 10%.
 

@@ -1,6 +1,6 @@
 {
   "name": "RavagerNoSacrifice",
-  "version_number": "1.1.0",
+  "version_number": "1.2.0",
   "website_url": "https://github.com/LowxRise/RavagerNoSacrifice",
   "description": "Configure Twisted Mutation, give short Nullify releases a shorter cooldown, and keep the Blood Well visible with LookingGlass.",
   "dependencies": [

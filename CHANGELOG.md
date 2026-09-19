@@ -1,3 +1,10 @@
+1.2.0
+
+- Replaced Ravager's failing Blood Well HUD setup while LookingGlass is installed.
+- Recreated the gauge from Ravager's original ChargeRing asset.
+- Moved the gauge into a separate crosshair overlay that LookingGlass does not hide.
+- Stopped the repeated null-reference errors caused by the original setup.
+
 1.1.0
 
 - Added the package icon to the Risk of Options page.

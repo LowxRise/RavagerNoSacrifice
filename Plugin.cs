@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace RavagerNoSacrifice
 {
-    [BepInPlugin(Guid, Name, "1.1.0")]
+    [BepInPlugin(Guid, Name, "1.2.0")]
     [BepInDependency("com.rob.Ravager")]
     [BepInDependency("com.rune580.riskofoptions")]
     [BepInDependency("droppod.lookingglass", BepInDependency.DependencyFlags.SoftDependency)]
