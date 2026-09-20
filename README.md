@@ -1,13 +1,13 @@
-Configure Ravager's Twisted Mutation and Nullify, with a compatibility fix for the Blood Well meter when LookingGlass is installed.
+This mod adds a few settings and interface improvements for Ravager.
 
-The Twisted Mutation health-cost slider runs from 0 to 10%, with 0% as the default. This is the cost at full charge; a shorter charge still costs proportionally less. The ordinary blink is untouched.
+Twisted Mutation's charged second jump can cost from 0 to 10% of full combined health. The default is 0%. A partial charge still costs proportionally less, and setting the cost to 0% now also removes the red damaged-screen effect. The ordinary jump is untouched.
 
-The Short-release cooldown option is enabled by default. Releasing the alternate utility Nullify in under two seconds gives it a four-second base cooldown. Holding it for two seconds or longer keeps its original 12-second base cooldown. Cooldown-reduction items still work normally.
+The optional short-release rule gives Nullify a four-second base cooldown when it is released in under two seconds. Holding it for two seconds or longer keeps its original 12-second base cooldown. Cooldown-reduction items still work normally.
 
-When LookingGlass is installed, the mod rebuilds Ravager's original Blood Well ring from Ravager's own asset and places it in a separate crosshair overlay. This avoids Ravager's failing HUD setup and prevents LookingGlass's tab-only stats mode from hiding the ring. LookingGlass remains optional.
+The Blood Well meter now uses the same centered native gauge style as Seamstress Alternative. It replaces Ravager's offset ring and works whether LookingGlass is installed or not.
 
-Changes apply to the next use. Requires Ravager and Risk of Options. Built against Ravager 1.6.0 and LookingGlass 1.15.2. Ravager's original Twisted Mutation tooltip still says 10%.
+When LookingGlass is installed, Ravager skill tooltips show cooldown and proc-coefficient details like the original survivors. LookingGlass is optional.
 
-For multiplayer, install it on every player's profile and use matching settings. Import the ZIP through r2modman's Settings > Profile > Import local mod.
+Changes apply on the next use. Requires Ravager, Risk of Options, and BepInEx. Built against Ravager 1.6.0. Install the same version and matching settings for every player in multiplayer. Import the ZIP through r2modman's Settings > Profile > Import local mod.
 
 Icon taken from the thumbnail of [Magicaroo's Ravager video](https://www.youtube.com/shorts/7Zv2nh4amwQ).

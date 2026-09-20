@@ -1,167 +1,183 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
-using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
+using RoR2;
+using RoR2.HudOverlay;
 using RoR2.UI;
+using TMPro;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
+using UnityEngine.UI;
 
 namespace RavagerNoSacrifice
 {
     internal static class RavagerHud
     {
-        private const string LookingGlassGuid = "droppod.lookingglass";
-        private const string OverlayName = "RavagerBloodWellOverlay";
         private static readonly Harmony harmony = new Harmony(Plugin.Guid + ".hud");
         private static Type controllerType;
-        private static Type ringGaugeType;
-        private static FieldInfo assetBundleField;
-        private static FieldInfo targetHudField;
-        private static FieldInfo targetField;
-        private static FieldInfo fillBarField;
-        private static Type imageType;
+        private static FieldInfo meterField;
+        private static FieldInfo drainingField;
         private static ManualLogSource logger;
-        private static bool active;
-        private static bool creationErrorReported;
-        private static float nextCheck;
 
         internal static void Install(ManualLogSource log)
         {
             logger = log;
-            active = Chainloader.PluginInfos.ContainsKey(LookingGlassGuid);
-            if (!active)
-                return;
-
-            controllerType = AccessTools.TypeByName("RedGuyMod.Content.Components.RedGuyController");
-            ringGaugeType = AccessTools.TypeByName("RedGuyMod.Content.Components.BloodGauge2");
-            var assetsType = AccessTools.TypeByName("RedGuyMod.Modules.Assets");
-            var hudSetup = AccessTools.Method(AccessTools.TypeByName("RedGuyMod.Content.Survivors.RedGuy"), "HUDSetup");
-            assetBundleField = AccessTools.Field(assetsType, "mainAssetBundle");
-            targetHudField = AccessTools.Field(ringGaugeType, "targetHUD");
-            targetField = AccessTools.Field(ringGaugeType, "target");
-            fillBarField = AccessTools.Field(ringGaugeType, "fillBar");
-            imageType = AccessTools.TypeByName("UnityEngine.UI.Image");
-            if (controllerType == null || ringGaugeType == null || hudSetup == null ||
-                assetBundleField == null || targetHudField == null || targetField == null ||
-                fillBarField == null || imageType == null)
+            try
             {
-                active = false;
-                logger.LogWarning("Ravager's Blood Well HUD types were not found.");
-                return;
+                controllerType = AccessTools.TypeByName("RedGuyMod.Content.Components.RedGuyController");
+                meterField = AccessTools.Field(controllerType, "meter");
+                drainingField = AccessTools.Field(controllerType, "draining");
+                var hudSetup = AccessTools.Method(AccessTools.TypeByName("RedGuyMod.Content.Survivors.RedGuy"), "HUDSetup");
+                if (controllerType == null || meterField == null || drainingField == null || hudSetup == null)
+                    throw new MissingMemberException("Ravager's Blood Well members were not found.");
+                harmony.Patch(hudSetup, prefix: new HarmonyMethod(typeof(RavagerHud), nameof(SkipOriginalGauge)));
+                CharacterBody.onBodyStartGlobal += AddGauge;
+                logger.LogInfo("Centered Blood Well overlay loaded.");
             }
-
-            harmony.Patch(hudSetup, prefix: new HarmonyMethod(typeof(RavagerHud), nameof(UseRavagerSetup)));
-            logger.LogInfo("LookingGlass Blood Well replacement loaded.");
+            catch (Exception exception)
+            {
+                harmony.UnpatchSelf();
+                logger.LogError($"The Blood Well overlay was not installed.\n{exception}");
+            }
         }
 
         internal static void Uninstall()
         {
+            CharacterBody.onBodyStartGlobal -= AddGauge;
             harmony.UnpatchSelf();
-            active = false;
             logger = null;
         }
 
-        internal static void Tick()
+        private static bool SkipOriginalGauge() => false;
+
+        private static void AddGauge(CharacterBody body)
         {
-            if (!active || Time.unscaledTime < nextCheck)
-                return;
-            nextCheck = Time.unscaledTime + 0.25f;
-            foreach (var hud in HUD.readOnlyInstanceList)
-                Repair(hud);
+            var target = body ? body.GetComponent(controllerType) : null;
+            if (target && !body.GetComponent<RavagerMeterController>())
+                body.gameObject.AddComponent<RavagerMeterController>().Initialize(target, meterField, drainingField, logger);
+        }
+    }
+
+    internal sealed class RavagerMeterController : MonoBehaviour
+    {
+        private static GameObject overlayPrefab;
+        private static string overlayChild;
+        private static readonly Color idleColor = new Color32(152, 12, 37, 255);
+        private static readonly Color drainColor = new Color32(255, 0, 46, 255);
+        private static readonly int meterParameter = Animator.StringToHash("corruption");
+        private static readonly int drainParameter = Animator.StringToHash("isCorrupted");
+        private readonly List<ImageFillController> fills = new List<ImageFillController>();
+        private readonly List<TextMeshProUGUI> texts = new List<TextMeshProUGUI>();
+        private readonly List<Image> images = new List<Image>();
+        private readonly List<Animator> animators = new List<Animator>();
+        private Component target;
+        private FieldInfo meterField;
+        private FieldInfo drainingField;
+        private OverlayController overlay;
+        private ManualLogSource logger;
+
+        internal void Initialize(Component target, FieldInfo meter, FieldInfo draining, ManualLogSource log)
+        {
+            this.target = target;
+            meterField = meter;
+            drainingField = draining;
+            logger = log;
         }
 
-        private static bool UseRavagerSetup() => !active;
-
-        private static void Repair(HUD hud)
-        {
-            if (!hud || !hud.targetBodyObject || !hud.targetBodyObject.GetComponent(controllerType))
-                return;
-
-            var gauges = hud.GetComponentsInChildren(ringGaugeType, true);
-            if (gauges.Length == 0)
-            {
-                var gauge = CreateGauge(hud);
-                if (!gauge)
-                    return;
-                gauges = new[] { gauge };
-            }
-
-            foreach (Component gauge in gauges)
-            {
-                var root = gauge.transform.parent ? gauge.transform.parent : gauge.transform;
-                PlaceInOverlay(root, hud);
-            }
-        }
-
-        private static Component CreateGauge(HUD hud)
+        private void Start()
         {
             try
             {
-                var bundle = assetBundleField.GetValue(null) as AssetBundle;
-                var prefab = bundle ? bundle.LoadAsset<GameObject>("ChargeRing") : null;
-                if (!prefab)
-                    throw new MissingMemberException("Ravager's ChargeRing asset was not found.");
-
-                var root = UnityEngine.Object.Instantiate(prefab);
-                root.name = "RavagerBloodWell";
-                PlaceInOverlay(root.transform, hud);
-                var fillObject = root.transform.GetChild(0).gameObject;
-                var gauge = fillObject.AddComponent(ringGaugeType);
-                targetHudField.SetValue(gauge, hud);
-                targetField.SetValue(gauge, hud.targetBodyObject.GetComponent(controllerType));
-                fillBarField.SetValue(gauge, fillObject.GetComponent(imageType));
-                creationErrorReported = false;
-                return gauge;
+                LoadOverlay();
+                if (!overlayPrefab)
+                    throw new MissingMemberException("Void Fiend's meter overlay was not found.");
+                overlay = HudOverlayManager.AddOverlay(gameObject, new OverlayCreationParams
+                {
+                    prefab = overlayPrefab,
+                    childLocatorEntry = overlayChild
+                });
+                overlay.onInstanceAdded += InstanceAdded;
+                overlay.onInstanceRemove += InstanceRemoved;
+                foreach (var instance in overlay.instancesList)
+                    InstanceAdded(overlay, instance);
             }
             catch (Exception exception)
             {
-                if (!creationErrorReported)
-                {
-                    creationErrorReported = true;
-                    logger.LogError($"The Blood Well gauge could not be created.\n{exception}");
-                }
-                return null;
+                logger?.LogError($"The Blood Well meter could not be created.\n{exception}");
+                Destroy(this);
             }
         }
 
-        private static void PlaceInOverlay(Transform root, HUD hud)
+        private static void LoadOverlay()
         {
-            if (!root)
+            if (overlayPrefab)
                 return;
+            var body = Addressables.LoadAssetAsync<GameObject>(
+                "RoR2/DLC1/VoidSurvivor/VoidSurvivorBody.prefab").WaitForCompletion();
+            var controller = body ? body.GetComponent<VoidSurvivorController>() : null;
+            if (!controller)
+                return;
+            overlayPrefab = controller.overlayPrefab;
+            overlayChild = controller.overlayChildLocatorEntry;
+        }
 
-            var overlay = hud.transform.Find(OverlayName);
-            if (!overlay)
+        private void Update()
+        {
+            if (!target)
+                return;
+            float meter = Mathf.Clamp((float)meterField.GetValue(target), 0f, 100f);
+            float fraction = meter / 100f;
+            foreach (var fill in fills)
+                if (fill) fill.SetTValue(fraction);
+            foreach (var text in texts)
+                if (text) text.SetText(Mathf.FloorToInt(meter).ToString());
+            var color = (bool)drainingField.GetValue(target) ? drainColor : idleColor;
+            foreach (var animator in animators)
             {
-                var parent = hud.transform.Find("MainContainer/MainUIArea/CrosshairCanvas");
-                if (!parent)
-                    parent = hud.transform;
-                var overlayObject = new GameObject(OverlayName, typeof(RectTransform), typeof(Canvas));
-                overlayObject.layer = parent.gameObject.layer;
-                overlay = overlayObject.transform;
-                overlay.SetParent(parent, false);
-                var overlayRect = overlay as RectTransform;
-                overlayRect.anchorMin = Vector2.zero;
-                overlayRect.anchorMax = Vector2.one;
-                overlayRect.offsetMin = Vector2.zero;
-                overlayRect.offsetMax = Vector2.zero;
-                var canvas = overlayObject.GetComponent<Canvas>();
-                canvas.overrideSorting = true;
-                canvas.sortingOrder = 5000;
+                if (!animator)
+                    continue;
+                animator.SetFloat(meterParameter, meter);
+                animator.SetBool(drainParameter, color == drainColor);
             }
+            foreach (var image in images)
+            {
+                if (!image || image.type != Image.Type.Filled)
+                    continue;
+                var current = image.color;
+                image.color = new Color(color.r, color.g, color.b, current.a);
+            }
+        }
 
-            if (root.parent != overlay)
-                root.SetParent(overlay, false);
-            root.gameObject.SetActive(true);
-            root.SetAsLastSibling();
-            var rect = root as RectTransform;
-            if (!rect)
+        private void InstanceAdded(OverlayController _, GameObject instance)
+        {
+            foreach (var fill in instance.GetComponentsInChildren<ImageFillController>(true))
+                if (!fills.Contains(fill)) fills.Add(fill);
+            foreach (var text in instance.GetComponentsInChildren<TextMeshProUGUI>(true))
+                if (!texts.Contains(text)) texts.Add(text);
+            foreach (var image in instance.GetComponentsInChildren<Image>(true))
+                if (!images.Contains(image)) images.Add(image);
+            foreach (var animator in instance.GetComponentsInChildren<Animator>(true))
+                if (!animators.Contains(animator)) animators.Add(animator);
+        }
+
+        private void InstanceRemoved(OverlayController _, GameObject instance)
+        {
+            fills.RemoveAll(fill => !fill || fill.transform.IsChildOf(instance.transform));
+            texts.RemoveAll(text => !text || text.transform.IsChildOf(instance.transform));
+            images.RemoveAll(image => !image || image.transform.IsChildOf(instance.transform));
+            animators.RemoveAll(animator => !animator || animator.transform.IsChildOf(instance.transform));
+        }
+
+        private void OnDestroy()
+        {
+            if (overlay == null)
                 return;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(65f, -75f);
-            rect.localRotation = Quaternion.identity;
-            rect.localScale = new Vector3(0.4f, 0.4f, 1f);
+            overlay.onInstanceAdded -= InstanceAdded;
+            overlay.onInstanceRemove -= InstanceRemoved;
+            HudOverlayManager.RemoveOverlay(overlay);
+            overlay = null;
         }
     }
 }

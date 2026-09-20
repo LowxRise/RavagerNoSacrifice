@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using BepInEx;
 using BepInEx.Configuration;
 using EntityStates;
@@ -12,7 +14,7 @@ using UnityEngine;
 
 namespace RavagerNoSacrifice
 {
-    [BepInPlugin(Guid, Name, "1.2.0")]
+    [BepInPlugin(Guid, Name, "1.3.0")]
     [BepInDependency("com.rob.Ravager")]
     [BepInDependency("com.rune580.riskofoptions")]
     [BepInDependency("droppod.lookingglass", BepInDependency.DependencyFlags.SoftDependency)]
@@ -32,7 +34,7 @@ namespace RavagerNoSacrifice
                 "Maximum percent of full combined health spent on the charged aerial blink. Partial charge still costs proportionally less. Applies on the next blink.", Guid, Name);
             quickNullifyCooldown = TweakSettings.Checkbox(Config, "Nullify", "Short-release cooldown", true,
                 "Releasing Nullify in under two seconds gives it a four-second base cooldown. Longer charges keep the original cooldown.", Guid, Name);
-            ModSettingsManager.SetModDescription("Configure Twisted Mutation's health cost, improve Nullify's quick release, and keep Ravager's Blood Well visible with LookingGlass.", Guid, Name);
+            ModSettingsManager.SetModDescription("Configure Twisted Mutation and Nullify, rebuild the Blood Well display, and add Ravager skill details to LookingGlass.", Guid, Name);
             var icon = SettingsIcon.Load("RavagerNoSacrifice.SettingsIcon.png");
             if (icon)
                 ModSettingsManager.SetModIcon(icon, Guid, Name);
@@ -54,9 +56,8 @@ namespace RavagerNoSacrifice
                 Logger.LogError($"The Ravager tweak was not applied. The installed Ravager version may have changed.\n{exception}");
             }
             RavagerHud.Install(Logger);
+            LookingGlassSupport.Install(Logger);
         }
-
-        private void LateUpdate() => RavagerHud.Tick();
 
         private void OnDestroy()
         {
@@ -65,8 +66,25 @@ namespace RavagerNoSacrifice
         }
         private static float CostFraction() => healthCost.Value / 100f;
 
-        private static IEnumerable<CodeInstruction> ChangeHealthCost(IEnumerable<CodeInstruction> instructions) =>
-            PatchTools.ReplaceFloat(instructions, 0.1f, AccessTools.Method(typeof(Plugin), nameof(CostFraction)));
+        private static IEnumerable<CodeInstruction> ChangeHealthCost(IEnumerable<CodeInstruction> instructions)
+        {
+            var code = PatchTools.ReplaceFloat(instructions, 0.1f,
+                AccessTools.Method(typeof(Plugin), nameof(CostFraction))).ToList();
+            var takeDamage = AccessTools.Method(typeof(HealthComponent), nameof(HealthComponent.TakeDamage),
+                new[] { typeof(DamageInfo) });
+            var matches = code.Where(x => x.Calls(takeDamage)).ToList();
+            if (matches.Count != 1)
+                throw new InvalidOperationException("Twisted Mutation's health-cost call no longer matches.");
+            matches[0].opcode = OpCodes.Call;
+            matches[0].operand = AccessTools.Method(typeof(Plugin), nameof(ApplyHealthCost));
+            return code;
+        }
+
+        private static void ApplyHealthCost(HealthComponent healthComponent, DamageInfo damageInfo)
+        {
+            if (healthCost.Value > 0 && damageInfo.damage > 0f)
+                healthComponent.TakeDamage(damageInfo);
+        }
 
         private static void ApplyQuickNullifyCooldown(EntityState __instance)
         {

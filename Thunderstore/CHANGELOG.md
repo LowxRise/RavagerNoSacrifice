@@ -1,3 +1,10 @@
+1.3.0
+
+- Removed the red damaged-screen effect when Twisted Mutation's health cost is 0%.
+- Replaced the offset Blood Well ring with a centered native gauge based on the same UI used by Seamstress Alternative.
+- Made the new Blood Well gauge work with or without LookingGlass.
+- Added Ravager cooldown and proc-coefficient details to LookingGlass skill tooltips.
+
 1.2.0
 
 - Replaced Ravager's failing Blood Well HUD setup while LookingGlass is installed.
