@@ -4,7 +4,7 @@ Twisted Mutation's charged second jump can cost from 0 to 10% of full combined h
 
 The optional short-release rule gives Nullify a four-second base cooldown when it is released in under two seconds. Holding it for two seconds or longer keeps its original 12-second base cooldown. Cooldown-reduction items still work normally.
 
-The Blood Well meter now uses the same centered native gauge style as Seamstress Alternative. It replaces Ravager's offset ring and works whether LookingGlass is installed or not.
+The Blood Well meter now uses the same centered native gauge style as Seamstress Alternative. It replaces Ravager's offset ring, stays red while charging and draining, and works whether LookingGlass is installed or not.
 
 When LookingGlass is installed, Ravager skill tooltips show cooldown and proc-coefficient details like the original survivors. LookingGlass is optional.
 

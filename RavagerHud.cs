@@ -64,8 +64,7 @@ namespace RavagerNoSacrifice
     {
         private static GameObject overlayPrefab;
         private static string overlayChild;
-        private static readonly Color idleColor = new Color32(152, 12, 37, 255);
-        private static readonly Color drainColor = new Color32(255, 0, 46, 255);
+        private static readonly Color bloodColor = new Color32(255, 0, 46, 255);
         private static readonly int meterParameter = Animator.StringToHash("corruption");
         private static readonly int drainParameter = Animator.StringToHash("isCorrupted");
         private readonly List<ImageFillController> fills = new List<ImageFillController>();
@@ -119,7 +118,11 @@ namespace RavagerNoSacrifice
             var controller = body ? body.GetComponent<VoidSurvivorController>() : null;
             if (!controller)
                 return;
-            overlayPrefab = controller.overlayPrefab;
+            overlayPrefab = UnityEngine.Object.Instantiate(controller.overlayPrefab);
+            overlayPrefab.name = "RavagerBloodWellOverlayPrefab";
+            overlayPrefab.SetActive(false);
+            UnityEngine.Object.DontDestroyOnLoad(overlayPrefab);
+            ApplyRedTheme(overlayPrefab);
             overlayChild = controller.overlayChildLocatorEntry;
         }
 
@@ -133,21 +136,22 @@ namespace RavagerNoSacrifice
                 if (fill) fill.SetTValue(fraction);
             foreach (var text in texts)
                 if (text) text.SetText(Mathf.FloorToInt(meter).ToString());
-            var color = (bool)drainingField.GetValue(target) ? drainColor : idleColor;
+            bool draining = (bool)drainingField.GetValue(target);
             foreach (var animator in animators)
             {
                 if (!animator)
                     continue;
                 animator.SetFloat(meterParameter, meter);
-                animator.SetBool(drainParameter, color == drainColor);
+                animator.SetBool(drainParameter, draining);
             }
+        }
+
+        private void LateUpdate()
+        {
             foreach (var image in images)
-            {
-                if (!image || image.type != Image.Type.Filled)
-                    continue;
-                var current = image.color;
-                image.color = new Color(color.r, color.g, color.b, current.a);
-            }
+                ApplyRed(image);
+            foreach (var text in texts)
+                ApplyRed(text);
         }
 
         private void InstanceAdded(OverlayController _, GameObject instance)
@@ -178,6 +182,36 @@ namespace RavagerNoSacrifice
             overlay.onInstanceRemove -= InstanceRemoved;
             HudOverlayManager.RemoveOverlay(overlay);
             overlay = null;
+        }
+
+        private static void ApplyRedTheme(GameObject root)
+        {
+            foreach (var image in root.GetComponentsInChildren<Image>(true))
+                ApplyRed(image);
+            foreach (var text in root.GetComponentsInChildren<TextMeshProUGUI>(true))
+                ApplyRed(text);
+        }
+
+        private static void ApplyRed(Image image)
+        {
+            if (!image || image.type != Image.Type.Filled)
+                return;
+            var current = image.color;
+            var red = new Color(bloodColor.r, bloodColor.g, bloodColor.b, current.a);
+            image.color = red;
+            image.canvasRenderer.SetColor(red);
+        }
+
+        private static void ApplyRed(TextMeshProUGUI text)
+        {
+            if (!text)
+                return;
+            var current = text.color;
+            var red = new Color(bloodColor.r, bloodColor.g, bloodColor.b, current.a);
+            text.color = red;
+            var face = text.faceColor;
+            text.faceColor = new Color32(255, 0, 46, face.a);
+            text.canvasRenderer.SetColor(red);
         }
     }
 }

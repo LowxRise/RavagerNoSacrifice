@@ -1,3 +1,7 @@
+1.3.1
+
+- Kept the Blood Well gauge red while it is charging and while it is draining, instead of using Void Fiend's purple color.
+
 1.3.0
 
 - Removed the red damaged-screen effect when Twisted Mutation's health cost is 0%.

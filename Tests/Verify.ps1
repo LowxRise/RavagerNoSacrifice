@@ -33,7 +33,12 @@ Check (@($blink.Body.Instructions | Where-Object { $_.OpCode.Name -eq 'ldc.r4' -
 Check (@($blink.Body.Instructions | Where-Object { $_.Operand.Name -eq 'TakeDamage' }).Count -eq 1) 'Twisted Mutation damage call'
 $plugin = $addon.MainModule.GetType('RavagerNoSacrifice.Plugin')
 $pluginVersion = ($plugin.CustomAttributes | Where-Object { $_.AttributeType.Name -eq 'BepInPlugin' }).ConstructorArguments[2].Value
-Check ($null -ne $addon.MainModule.GetType('RavagerNoSacrifice.RavagerMeterController')) 'Centered meter controller is included'
+$meter = $addon.MainModule.GetType('RavagerNoSacrifice.RavagerMeterController')
+Check ($null -ne $meter) 'Centered meter controller is included'
+Check (@($meter.Fields | Where-Object Name -eq 'bloodColor').Count -eq 1) 'Blood-red meter color is defined once'
+Check (@($meter.Fields | Where-Object { $_.Name -in @('idleColor','drainColor') }).Count -eq 0) 'Void-purple meter colors were removed'
+Check (@($meter.Methods | Where-Object Name -eq 'LateUpdate').Count -eq 1) 'Meter color is restored after animations'
+Check (@($meter.Methods | Where-Object Name -eq 'ApplyRedTheme').Count -eq 1) 'Meter prefab receives the red theme'
 Check ($null -ne $addon.MainModule.GetType('RavagerNoSacrifice.LookingGlassSupport')) 'LookingGlass skill support is included'
 $healthPatch = Method $addon 'RavagerNoSacrifice.Plugin' 'ChangeHealthCost'
 Check (@($healthPatch.Body.Instructions | Where-Object { $_.OpCode.Name -eq 'ldstr' -and $_.Operand -eq 'ApplyHealthCost' }).Count -eq 1) 'Zero-cost damage wrapper is installed'
